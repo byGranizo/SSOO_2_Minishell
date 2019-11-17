@@ -16,7 +16,12 @@ int instruccionNormal(tline * line){
 		exit(0);
 	} else {
 		//padre
-		waitpid(pid, NULL, 0);
+		if(line->background){
+			printf("[%d]\n",pid);
+		} else {
+			waitpid(pid, NULL, 0);
+		}
+		
 	}
 }
 
@@ -38,7 +43,7 @@ int main(int argc){
 		if (line==NULL) {
 			continue;
 		}
-		if (line->redirect_input != NULL) {
+		/*if (line->redirect_input != NULL) {
 			
 		}
 		if (line->redirect_output != NULL) {
@@ -49,7 +54,8 @@ int main(int argc){
 		}
 		if (line->background) {
 			
-		}
+		}*/
+		instruccionNormal(line);
 		
 		printf("msh> ");	
 	}
