@@ -3,9 +3,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include "parser.h"
 #include <signal.h>
 
+tline * line;
 
 void SIGINT_custom(int signum){
 	printf("\nmsh> ");
@@ -17,7 +19,7 @@ void SIGQUIT_custom(int signum){
 	fflush(stdout);
 }
 
-int instruccionNormal(tline * line){
+int instruccionNormal(){
 	pid_t pid;
 	pid = fork();
 	if (pid < 0){
@@ -38,6 +40,23 @@ int instruccionNormal(tline * line){
 }
 
 int changeDirectory(){
+	if(line->commands[0].argc != 2){
+		return 1;
+	}
+
+	char cwd[1024];
+	if(line->commands[0].argv[1][0] != '/'){
+		getcwd(cwd,sizeof(cwd));
+        strcat(cwd,"/");
+        strcat(cwd, line->commands[0].argv[1]);
+        chdir(cwd);
+	} else {
+		chdir(line->commands[0].argv[1]);
+	}
+	printf("El nuevo directorio es: %s\n", getcwd(cwd,sizeof(cwd)));
+}
+
+int redirections(){
 
 }
 
@@ -45,13 +64,8 @@ int pipes(){
 
 }
 
-int redirections(){
-
-}
-
 int main(int argc){
     char buf[1024];
-	tline * line;
 	pid_t pid;
     int i;
 	int result;
@@ -72,7 +86,6 @@ int main(int argc){
 		if (line==NULL) {
 			continue;
 		}
-
 		if(line->ncommands == 1){
 			if (line->redirect_input != NULL) {
 			
@@ -83,7 +96,12 @@ int main(int argc){
 			if (line->redirect_error != NULL) {
 				
 			}
-			instruccionNormal(line);
+			if(strcmp(line->commands[0].argv[0], "cd") == 0){
+				changeDirectory();
+			} else {
+				instruccionNormal();
+			}
+			
 		} else {
 
 		}
