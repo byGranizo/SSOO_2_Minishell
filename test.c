@@ -33,6 +33,7 @@ main(void) {
 				printf("  argumento %d: %s\n", j, line->commands[i].argv[j]);
 			}
 		}
+		printf("%d",line->ncommands);
 		printf("==> ");	
 	}
 	return 0;

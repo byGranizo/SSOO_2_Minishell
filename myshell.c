@@ -4,6 +4,18 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include "parser.h"
+#include <signal.h>
+
+
+void SIGINT_custom(int signum){
+	printf("\nmsh> ");
+	fflush(stdout);
+}
+
+void SIGQUIT_custom(int signum){
+	printf("\nmsh> ");
+	fflush(stdout);
+}
 
 int instruccionNormal(tline * line){
 	pid_t pid;
@@ -25,6 +37,18 @@ int instruccionNormal(tline * line){
 	}
 }
 
+int changeDirectory(){
+
+}
+
+int pipes(){
+
+}
+
+int redirections(){
+
+}
+
 int main(int argc){
     char buf[1024];
 	tline * line;
@@ -32,30 +56,38 @@ int main(int argc){
     int i;
 	int result;
 
-    if(argc != 1){
+	if(argc != 1){
         return 1;
     }
 
+	signal(SIGINT, SIGINT_custom);
+	signal(SIGQUIT, SIGQUIT_custom);
+
     printf("msh> ");
 	while (fgets(buf, 1024, stdin)) {
+		signal(SIGINT, SIGINT_custom);
+		signal(SIGQUIT, SIGQUIT_custom);
 		
 		line = tokenize(buf);
 		if (line==NULL) {
 			continue;
 		}
-		/*if (line->redirect_input != NULL) {
+
+		if(line->ncommands == 1){
+			if (line->redirect_input != NULL) {
 			
+			}
+			if (line->redirect_output != NULL) {
+				
+			}
+			if (line->redirect_error != NULL) {
+				
+			}
+			instruccionNormal(line);
+		} else {
+
 		}
-		if (line->redirect_output != NULL) {
-			
-		}
-		if (line->redirect_error != NULL) {
-			
-		}
-		if (line->background) {
-			
-		}*/
-		instruccionNormal(line);
+		
 		
 		printf("msh> ");	
 	}
