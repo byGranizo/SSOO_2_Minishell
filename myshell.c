@@ -92,16 +92,19 @@ int main(int argc){
 		if (line==NULL) {
 			continue;
 		}
-		if(line->ncommands == 1){
-			if (line->redirect_input != NULL) {
+
+		//Cambiar el pirateado, una sola funcion, con condicion OR en el if,
+		//que redirija (si se le mete alguno) y si se le mete null que lo mande a lo que sea por defecto
+		if (line->redirect_input != NULL) {
 			
-			}
-			if (line->redirect_output != NULL) {
-				
-			}
-			if (line->redirect_error != NULL) {
-				
-			}
+		}
+		if (line->redirect_output != NULL) {
+			
+		}
+		if (line->redirect_error != NULL) {
+			
+		}
+		if(line->ncommands == 1){
 			if(strcmp(line->commands[0].argv[0], "cd") == 0){
 				changeDirectory();
 			} else if(strcmp(line->commands[0].argv[0], "exit") == 0){
