@@ -9,14 +9,22 @@
 
 tline * line;
 
-void SIGINT_custom(int signum){
+void SIG_IGN_custom(int signum){
 	printf("\nmsh> ");
 	fflush(stdout);
 }
 
-void SIGQUIT_custom(int signum){
-	printf("\nmsh> ");
-	fflush(stdout);
+void signalDefault(){
+	signal(SIGINT, SIG_DFL);
+	signal(SIGQUIT, SIG_DFL);
+}
+
+void signalIgnore(){
+	signal(SIGINT, SIG_IGN_custom);
+	signal(SIGQUIT, SIG_IGN_custom);
+
+	/*signal(SIGINT, SIG_IGN);
+	signal(SIGQUIT, SIG_IGN);*/
 }
 
 int instruccionNormal(){
@@ -74,13 +82,11 @@ int main(int argc){
         return 1;
     }
 
-	signal(SIGINT, SIGINT_custom);
-	signal(SIGQUIT, SIGQUIT_custom);
+	signalIgnore();
 
     printf("msh> ");
 	while (fgets(buf, 1024, stdin)) {
-		signal(SIGINT, SIGINT_custom);
-		signal(SIGQUIT, SIGQUIT_custom);
+		signalIgnore();
 		
 		line = tokenize(buf);
 		if (line==NULL) {
@@ -98,6 +104,8 @@ int main(int argc){
 			}
 			if(strcmp(line->commands[0].argv[0], "cd") == 0){
 				changeDirectory();
+			} else if(strcmp(line->commands[0].argv[0], "exit") == 0){
+				exit(0);
 			} else {
 				instruccionNormal();
 			}
