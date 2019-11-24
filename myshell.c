@@ -1,3 +1,6 @@
+//Queda elegir la mejor forma de redireccion, con espacios de memoria directamente,
+//o con ficheros/alias etc (preferible)
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -6,8 +9,12 @@
 #include <string.h>
 #include "parser.h"
 #include <signal.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 tline * line;
+int rIn, rOut, rErr;
+//int redirection;
 
 void SIG_IGN_custom(int signum){
 	printf("\nmsh> ");
@@ -65,11 +72,71 @@ int changeDirectory(){
 }
 
 int redirections(){
+	int redirection;
 
+	if (line->redirect_input != NULL) {
+		printf("redirección de entrada: %s\n", line->redirect_input);
+
+		redirection = open(line->redirect_input, O_CREAT | O_RDONLY);
+
+		if(redirection < 0){
+			return 1;
+		}
+
+		dup2(redirection, fileno(stdin));
+		/*dup2(0, 7);
+        dup2(redirection, 0);*/
+	}
+	if (line->redirect_output != NULL) {
+		printf("redirección de salida: %s\n", line->redirect_output);
+
+		redirection = creat (line->redirect_output ,  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH );
+		//redirection = open(salida, O_WRONLY | O_CREAT | O_TRUNC);
+
+		if(redirection < 0){
+			return 1;
+		}
+
+		dup2(redirection, fileno(stdout));
+		/*dup2(1, 8);
+        dup2(redirection, 1);*/
+	}
+	if (line->redirect_error != NULL) {
+		printf("redirección de error: %s\n", line->redirect_error);
+
+		redirection = creat (line->redirect_error ,  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+		//redirection = open(salida, O_WRONLY | O_CREAT | O_TRUNC);
+
+		if(redirection < 0){
+			return 1;
+		}
+
+		dup2(redirection, fileno(stderr));
+
+		/*dup2(2, 9);
+        dup2(redirection, 2);*/
+	}
 }
 
 int endRedirections(){
-	
+	if(line->redirect_input != NULL ){
+			dup2(rIn , fileno(stdin));
+
+			/*close(redirection);
+            dup2(7, 0);*/
+		}
+		if(line->redirect_output != NULL ){
+			dup2(rOut , fileno(stdout));	
+
+			/*close(redirection);
+            dup2(8, 1);*/
+		}
+		if(line->redirect_error != NULL ){
+			dup2(rErr , fileno(stderr));
+
+			/*close(redirection);
+            dup2(9, 2);*/	
+		}
 }
 
 
@@ -87,6 +154,10 @@ int main(int argc){
 	if(argc != 1){
         return 1;
     }
+
+	rIn = dup(fileno(stdin));
+	rOut = dup(fileno(stdout));
+	rErr = dup(fileno(stderr));
 
 	signalIgnore();
 
@@ -111,7 +182,7 @@ int main(int argc){
 			
 		}*/
 		redirections();
-		endRedirections();
+		
 		if(line->ncommands == 1){
 			if(strcmp(line->commands[0].argv[0], "cd") == 0){
 				changeDirectory();
@@ -125,7 +196,7 @@ int main(int argc){
 
 		}
 		
-		
+		endRedirections();
 		printf("msh> ");	
 	}
 }
