@@ -1,5 +1,5 @@
-//Queda elegir la mejor forma de redireccion, con espacios de memoria directamente,
-//o con ficheros/alias etc (preferible)
+//Queda elegir la mejor forma de redireccion, con espacios de memoria directamente, o con ficheros/alias etc (preferible)
+//Cuando se activan o deactivan las señales
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -32,26 +32,6 @@ void signalIgnore(){
 
 	/*signal(SIGINT, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);*/
-}
-
-int instruccionNormal(){
-	pid_t pid;
-	pid = fork();
-	if (pid < 0){
-		//fallo
-	} else if(pid == 0) {
-		//hijo
-		execvp(line->commands[0].argv[0], line->commands[0].argv);
-		exit(0);
-	} else {
-		//padre
-		if(line->background){
-			printf("[%d]\n",pid);
-		} else {
-			waitpid(pid, NULL, 0);
-		}
-		
-	}
 }
 
 int changeDirectory(){
@@ -139,9 +119,27 @@ int endRedirections(){
 		}
 }
 
+int simpleInstruction(){
+	pid_t pid;
+	pid = fork();
+	if (pid < 0){
+		//fallo
+	} else if(pid == 0) {
+		//hijo
+		execvp(line->commands[0].argv[0], line->commands[0].argv);
+		exit(0);
+	} else {
+		//padre
+		if(line->background){
+			printf("[%d]\n",pid);
+		} else {
+			waitpid(pid, NULL, 0);
+		}
+		
+	}
+}
 
-
-int pipes(){
+int pipedInstruction(){
 
 }
 
@@ -170,17 +168,6 @@ int main(int argc){
 			continue;
 		}
 
-		//Cambiar el pirateado, una sola funcion, con condicion OR en el if,
-		//que redirija (si se le mete alguno) y si se le mete null que lo mande a lo que sea por defecto
-		/*if (line->redirect_input != NULL) {
-			
-		}
-		if (line->redirect_output != NULL) {
-			
-		}
-		if (line->redirect_error != NULL) {
-			
-		}*/
 		redirections();
 		
 		if(line->ncommands == 1){
@@ -189,11 +176,11 @@ int main(int argc){
 			} else if(strcmp(line->commands[0].argv[0], "exit") == 0){
 				exit(0);
 			} else {
-				instruccionNormal();
+				simpleInstruction();
 			}
 			
 		} else {
-
+			pipedInstruction();
 		}
 		
 		endRedirections();
