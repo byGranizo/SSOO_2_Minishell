@@ -127,7 +127,9 @@ int simpleInstruction(){
 	} else if(pid == 0) {
 		//hijo
 		execvp(line->commands[0].argv[0], line->commands[0].argv);
-		exit(0);
+
+
+		exit(1);
 	} else {
 		//padre
 		if(line->background){
@@ -140,6 +142,55 @@ int simpleInstruction(){
 }
 
 int pipedInstruction(){
+	int i;
+	int ** pipes;
+	pid_t pid;
+
+	pipes = (int**) malloc((line->ncommands-1) * sizeof(int*));
+	for(i=0;i<line->ncommands-1;i++){
+		pipes[i] = (int*) malloc(2 * sizeof(int));
+	}
+
+	for(i=0;i<line->ncommands-1;i++){
+		pipe(pipes[i]);
+	}
+
+	for(i=0;i<line->ncommands;i++){
+		pid = fork();
+		if (pid < 0){
+			//fallo
+		} else if(pid == 0) {
+			//hijo
+			if(i == 0){
+				close(pipes[i][0]);
+				dup2(pipes[i][1], fileno(stdout));
+			} else if(i == line->ncommands - 1){
+				close(pipes[i-1][1]);
+				dup2(pipes[i-1][1], fileno(stdin));
+			} else {
+				close(pipes[i-1][1]);
+				dup2(pipes[i-1][0], fileno(stdin));
+				
+				close(pipes[i][0]);
+				dup2(pipes[i][1], fileno(stdout));
+			}
+			
+			execvp(line->commands[0].argv[0], line->commands[0].argv);
+
+			exit(1);
+			
+		} else {
+			//padre
+			
+			
+		}
+	}
+
+	for(i=0;i<line->ncommands-1;i++){
+		free(pipes[i]);
+	}
+	free(pipes);
+
 
 }
 
