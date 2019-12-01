@@ -61,6 +61,77 @@ int changeDirectory(){
 	printf("El nuevo directorio es: %s\n", getcwd(cwd,sizeof(cwd)));
 }
 
+int jobs(int print){
+	int i,j;
+	int status;
+	pid_t currentPid;
+
+	i = 0;
+	while(bgPidExec[i] != 0){
+		currentPid = waitpid(bgPidExec[i], &status, WNOHANG);
+
+		if(currentPid != 0){
+			for(j=i;j<50-1;j++){
+				if(bgPidExec[j] != 0){
+					bgPidExec[j] = bgPidExec[j+1];
+					strcpy(bgCommandExec[j], bgCommandExec[j+1]);
+				} else {
+					bgPidExec[50-1] = 0;
+				}
+			}
+			i--;
+		} else {
+			if(print){
+				printf("[%d] %d - %s", i+1, bgPidExec[i], bgCommandExec[i]);	
+			}
+		}
+		i++;
+	}
+
+	if(!print){
+		printf("[%d] %d\n", i, bgPidExec[i-1]);	
+	}
+}
+
+void fillJobsExecArray(pid_t pid){
+	int i;
+	i=0;
+	while(bgPidExec[i] != 0){
+		i++;
+	}
+	bgPidExec[i] = pid;
+	strcpy(bgCommandExec[i], buf);
+
+	jobs(0);
+}
+
+int foreground(){
+	int i,j;
+	int status;
+	pid_t currentPid;
+
+	if(line->commands[0].argv[1] != NULL){
+		i = atoi(line->commands[0].argv[1]);
+	} else {
+		i = 1;
+	}
+	i--;
+
+	if(bgPidExec[i] != 0){
+		currentPid = waitpid(bgPidExec[i], &status, 0);
+		if(currentPid != 0){
+			for(j=i;j<50-1;j++){
+				if(bgPidExec[j] != 0){
+					bgPidExec[j] = bgPidExec[j+1];
+					strcpy(bgCommandExec[j], bgCommandExec[j+1]);
+				} else {
+					bgPidExec[50-1] = 0;
+				}
+			}
+		}
+	}
+}
+
 int redirections(){
 	int redirection;
 
@@ -108,55 +179,6 @@ int redirections(){
 	}
 }
 
-int jobs(int print){
-	int i,j;
-	int status;
-	pid_t currentPid;
-
-	i = 0;
-	while(bgPidExec[i] != 0){
-		currentPid = waitpid(bgPidExec[i], &status, WNOHANG);
-
-		if(currentPid != 0){
-			for(j=i;j<50-1;j++){
-				if(bgPidExec[j] != 0){
-					bgPidExec[j] = bgPidExec[j+1];
-					strcpy(bgCommandExec[j], bgCommandExec[j+1]);
-				} else {
-					bgPidExec[50-1] = 0;
-				}
-			}
-			i--;
-		} else {
-			if(print){
-				printf("[%d] %d - %s", i+1, bgPidExec[i], bgCommandExec[i]);	
-			}
-		}
-		i++;
-	}
-
-	if(!print){
-		printf("[%d] %d\n", i, bgPidExec[i-1]);	
-	}
-
-	/*while(bgPidExec[i] != 0){
-		printf("[%d] %d - %s", i, bgPidExec[i], bgCommandExec[i]);
-		i++;
-	}*/
-}
-
-void fillJobsExecArray(pid_t pid){
-	int i;
-	i=0;
-	while(bgPidExec[i] != 0){
-		i++;
-	}
-	bgPidExec[i] = pid;
-	strcpy(bgCommandExec[i], buf);
-
-	jobs(0);
-}
-
 int endRedirections(){
 	if(line->redirect_input != NULL ){
 			dup2(rIn , fileno(stdin));
@@ -192,7 +214,6 @@ int simpleInstruction(){
 	} else {
 		//padre
 		if(line->background){
-			printf("[%d]\n",pid);
 			fillJobsExecArray(pid);
 		} else {
 			waitpid(pid, NULL, 0);
@@ -250,7 +271,6 @@ int pipedInstruction(){
 
 	if(line->background){
 		fillJobsExecArray(pids[0]);
-		printf("[%d]\n",pids[0]);
 	} else {
 		for(i=0;i<line->ncommands;i++){
 			waitpid(pids[i], NULL, 0);
@@ -309,6 +329,8 @@ int main(int argc){
 				exit(0);
 			} else if(strcmp(line->commands[0].argv[0], "jobs") == 0){
 				jobs(1);
+			} else if(strcmp(line->commands[0].argv[0], "fg") == 0){
+				foreground();
 			} else {
 				simpleInstruction();
 			}
