@@ -1,5 +1,5 @@
 //Cuando se activan o deactivan las señales
-//const del nº de mandatos maximos en bg
+//const del nº de mandatos maximos en bg o realloc
 //dar formato a la salida de jobs
 
 #include <stdio.h>
@@ -15,7 +15,9 @@
 
 #include <errno.h>
 
-char buf[1024];
+#define BUFFER_SIZE 1024
+
+char buf[BUFFER_SIZE];
 tline * line;
 int rIn, rOut, rErr;
 pid_t * bgPidExec;
@@ -45,7 +47,7 @@ int changeDirectory(){
 		return 1;
 	}
 
-	char cwd[1024];
+	char cwd[BUFFER_SIZE];
 	if(line->commands[0].argc == 2){
 		if(line->commands[0].argv[1][0] != '/'){
 			getcwd(cwd,sizeof(cwd));
@@ -301,13 +303,13 @@ int main(int argc){
 	bgPidExec = (pid_t*) calloc(50, sizeof(int));
 	bgCommandExec = (char**) malloc(50 * sizeof(char*));
 	for(i=0;i<50;i++){
-		bgCommandExec[i] = (char*) malloc(1024 * sizeof(char));
+		bgCommandExec[i] = (char*) malloc(BUFFER_SIZE * sizeof(char));
 	}
 
 	signalIgnore();
 
     printf("msh> ");
-	while (fgets(buf, 1024, stdin)) {
+	while (fgets(buf, BUFFER_SIZE, stdin)) {
 		
 		
 		line = tokenize(buf);
