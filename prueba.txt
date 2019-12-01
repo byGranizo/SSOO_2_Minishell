@@ -1,0 +1,10 @@
+hola
+libparser.a
+my
+myshell
+myshell.c
+parser.h
+pirateada1.c
+prueba.txt
+test
+test.c

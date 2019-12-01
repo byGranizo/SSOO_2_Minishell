@@ -1,5 +1,6 @@
-//Queda elegir la mejor forma de redireccion, con espacios de memoria directamente, o con ficheros/alias etc (preferible)
 //Cuando se activan o deactivan las señales
+//const del nº de mandatos maximos en bg
+//dar formato a la salida de jobs
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -12,8 +13,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <errno.h>
+
+char buf[1024];
 tline * line;
 int rIn, rOut, rErr;
+pid_t * bgPidExec;
+char ** bgCommandExec;
 //int redirection;
 
 void SIG_IGN_custom(int signum){
@@ -35,18 +41,22 @@ void signalIgnore(){
 }
 
 int changeDirectory(){
-	if(line->commands[0].argc != 2){
+	if(line->commands[0].argc > 2){
 		return 1;
 	}
 
 	char cwd[1024];
-	if(line->commands[0].argv[1][0] != '/'){
-		getcwd(cwd,sizeof(cwd));
-        strcat(cwd,"/");
-        strcat(cwd, line->commands[0].argv[1]);
-        chdir(cwd);
+	if(line->commands[0].argc == 2){
+		if(line->commands[0].argv[1][0] != '/'){
+			getcwd(cwd,sizeof(cwd));
+			strcat(cwd,"/");
+			strcat(cwd, line->commands[0].argv[1]);
+			chdir(cwd);
+		} else {
+			chdir(line->commands[0].argv[1]);
+		}
 	} else {
-		chdir(line->commands[0].argv[1]);
+		chdir(getenv("HOME"));
 	}
 	printf("El nuevo directorio es: %s\n", getcwd(cwd,sizeof(cwd)));
 }
@@ -98,6 +108,55 @@ int redirections(){
 	}
 }
 
+int jobs(int print){
+	int i,j;
+	int status;
+	pid_t currentPid;
+
+	i = 0;
+	while(bgPidExec[i] != 0){
+		currentPid = waitpid(bgPidExec[i], &status, WNOHANG);
+
+		if(currentPid != 0){
+			for(j=i;j<50-1;j++){
+				if(bgPidExec[j] != 0){
+					bgPidExec[j] = bgPidExec[j+1];
+					strcpy(bgCommandExec[j], bgCommandExec[j+1]);
+				} else {
+					bgPidExec[50-1] = 0;
+				}
+			}
+			i--;
+		} else {
+			if(print){
+				printf("[%d] %d - %s", i+1, bgPidExec[i], bgCommandExec[i]);	
+			}
+		}
+		i++;
+	}
+
+	if(!print){
+		printf("[%d] %d\n", i, bgPidExec[i-1]);	
+	}
+
+	/*while(bgPidExec[i] != 0){
+		printf("[%d] %d - %s", i, bgPidExec[i], bgCommandExec[i]);
+		i++;
+	}*/
+}
+
+void fillJobsExecArray(pid_t pid){
+	int i;
+	i=0;
+	while(bgPidExec[i] != 0){
+		i++;
+	}
+	bgPidExec[i] = pid;
+	strcpy(bgCommandExec[i], buf);
+
+	jobs(0);
+}
+
 int endRedirections(){
 	if(line->redirect_input != NULL ){
 			dup2(rIn , fileno(stdin));
@@ -134,6 +193,7 @@ int simpleInstruction(){
 		//padre
 		if(line->background){
 			printf("[%d]\n",pid);
+			fillJobsExecArray(pid);
 		} else {
 			waitpid(pid, NULL, 0);
 		}
@@ -144,45 +204,56 @@ int simpleInstruction(){
 int pipedInstruction(){
 	int i;
 	int ** pipes;
-	pid_t pid;
+	pid_t * pids;
 
 	pipes = (int**) malloc((line->ncommands-1) * sizeof(int*));
 	for(i=0;i<line->ncommands-1;i++){
 		pipes[i] = (int*) malloc(2 * sizeof(int));
-	}
-
-	for(i=0;i<line->ncommands-1;i++){
 		pipe(pipes[i]);
 	}
 
+	pids = (pid_t*) malloc((line->ncommands) * sizeof(pid_t));
+	
 	for(i=0;i<line->ncommands;i++){
-		pid = fork();
-		if (pid < 0){
+		signalDefault();
+
+		pids[i] = fork();
+		if (pids[i] < 0){
 			//fallo
-		} else if(pid == 0) {
+		} else if(pids[i] == 0) {
 			//hijo
 			if(i == 0){
 				close(pipes[i][0]);
 				dup2(pipes[i][1], fileno(stdout));
 			} else if(i == line->ncommands - 1){
 				close(pipes[i-1][1]);
-				dup2(pipes[i-1][1], fileno(stdin));
+				dup2(pipes[i-1][0], fileno(stdin));
 			} else {
 				close(pipes[i-1][1]);
 				dup2(pipes[i-1][0], fileno(stdin));
-				
 				close(pipes[i][0]);
 				dup2(pipes[i][1], fileno(stdout));
 			}
 			
-			execvp(line->commands[0].argv[0], line->commands[0].argv);
+			execvp(line->commands[i].argv[0], line->commands[i].argv);
+			fprintf(stderr, "Error al ejecutar el comando: %s\n", strerror(errno));
 
 			exit(1);
 			
 		} else {
 			//padre
-			
-			
+			if(!(i==(line->ncommands-1))){
+				close(pipes[i][1]);
+			}
+		}
+	}
+
+	if(line->background){
+		fillJobsExecArray(pids[0]);
+		printf("[%d]\n",pids[0]);
+	} else {
+		for(i=0;i<line->ncommands;i++){
+			waitpid(pids[i], NULL, 0);
 		}
 	}
 
@@ -195,7 +266,6 @@ int pipedInstruction(){
 }
 
 int main(int argc){
-    char buf[1024];
 	pid_t pid;
     int i;
 	int result;
@@ -208,11 +278,17 @@ int main(int argc){
 	rOut = dup(fileno(stdout));
 	rErr = dup(fileno(stderr));
 
+	bgPidExec = (pid_t*) calloc(50, sizeof(int));
+	bgCommandExec = (char**) malloc(50 * sizeof(char*));
+	for(i=0;i<50;i++){
+		bgCommandExec[i] = (char*) malloc(1024 * sizeof(char));
+	}
+
 	signalIgnore();
 
     printf("msh> ");
 	while (fgets(buf, 1024, stdin)) {
-		signalIgnore();
+		
 		
 		line = tokenize(buf);
 		if (line==NULL) {
@@ -225,7 +301,14 @@ int main(int argc){
 			if(strcmp(line->commands[0].argv[0], "cd") == 0){
 				changeDirectory();
 			} else if(strcmp(line->commands[0].argv[0], "exit") == 0){
+				for(i=0;i<50;i++){
+					free(bgCommandExec[i]);
+				}
+				free(bgCommandExec);
+
 				exit(0);
+			} else if(strcmp(line->commands[0].argv[0], "jobs") == 0){
+				jobs(1);
 			} else {
 				simpleInstruction();
 			}
@@ -235,6 +318,7 @@ int main(int argc){
 		}
 		
 		endRedirections();
+		signalIgnore();
 		printf("msh> ");	
 	}
 }
