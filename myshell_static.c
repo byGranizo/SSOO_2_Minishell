@@ -22,7 +22,6 @@ tline * line;
 int rIn, rOut, rErr;
 pid_t * bgPidExec;
 char ** bgCommandExec;
-int lengthBgExec;
 //int redirection;
 
 void SIG_IGN_custom(int signum){
@@ -64,50 +63,48 @@ int changeDirectory(){
 	printf("El nuevo directorio es: %s\n", getcwd(cwd,sizeof(cwd)));
 }
 
-void increaseJobsExecArrays(int increment){
-	lengthBgExec += increment;
-
-	bgPidExec = (pid_t*) realloc(bgPidExec, lengthBgExec * sizeof(int));
-	bgCommandExec = (char**) realloc(bgCommandExec, lengthBgExec * sizeof(char*));
-	for(i=0;i<lengthBgExec;i++){
-		bgCommandExec[i] = (char*) realloc(bgCommandExec[i], BUFFER_SIZE * sizeof(char));
-	}
-}
-
-int jobs(){
+int jobs(int print){
 	int i,j;
-	int arrayDecrement;
 	int status;
 	pid_t currentPid;
 
-	arrayDecrement = 0;
-
-	for(i=0;i<lengthBgExec-1;i++){
+	i = 0;
+	while(bgPidExec[i] != 0){
 		currentPid = waitpid(bgPidExec[i], &status, WNOHANG);
 
 		if(currentPid != 0){
-			arrayDecrement--;
-			for(j=i;j<lengthBgExec-1;i++){
-				bgPidExec[j] = bgPidExec[j+1];
-				strcpy(bgCommandExec[j], bgCommandExec[j+1]);
+			for(j=i;j<50-1;j++){
+				if(bgPidExec[j] != 0){
+					bgPidExec[j] = bgPidExec[j+1];
+					strcpy(bgCommandExec[j], bgCommandExec[j+1]);
+				} else {
+					bgPidExec[50-1] = 0;
+				}
 			}
-			bgPidExec[lengthBgExec+arrayDecrement] = 0;
 			i--;
 		} else {
-			printf("[%d] %d - %s", i+1, bgPidExec[i], bgCommandExec[i]);	
+			if(print){
+				printf("[%d] %d - %s", i+1, bgPidExec[i], bgCommandExec[i]);	
+			}
 		}
+		i++;
 	}
 
-	increaseJobsExecArrays(arrayDecrement);
+	if(!print){
+		printf("[%d] %d\n", i, bgPidExec[i-1]);	
+	}
 }
 
 void fillJobsExecArray(pid_t pid){
-	bgPidExec[lengthBgExec - 1] = pid;
-	strcpy(bgCommandExec[lengthBgExec - 1], buf);
+	int i;
+	i=0;
+	while(bgPidExec[i] != 0){
+		i++;
+	}
+	bgPidExec[i] = pid;
+	strcpy(bgCommandExec[i], buf);
 
-	printf("[%d] %d\n", lengthBgExec-1, bgPidExec[lengthBgExec-1]);
-
-	increaseJobsExecArrays(1);	
+	jobs(0);
 }
 
 int foreground(){
@@ -122,17 +119,19 @@ int foreground(){
 	}
 	i--;
 
-	if(i < lengthBgExec){
+	if(bgPidExec[i] != 0){
 		currentPid = waitpid(bgPidExec[i], &status, 0);
 		if(currentPid != 0){
-			for(j=i;j<lengthBgExec-1;i++){
-				bgPidExec[j] = bgPidExec[j+1];
-				strcpy(bgCommandExec[j], bgCommandExec[j+1]);
+			for(j=i;j<50-1;j++){
+				if(bgPidExec[j] != 0){
+					bgPidExec[j] = bgPidExec[j+1];
+					strcpy(bgCommandExec[j], bgCommandExec[j+1]);
+				} else {
+					bgPidExec[50-1] = 0;
+				}
 			}
 		}
 	}
-
-	increaseJobsExecArrays(-1);
 }
 
 int redirections(){
@@ -301,11 +300,9 @@ int main(int argc){
 	rOut = dup(fileno(stdout));
 	rErr = dup(fileno(stderr));
 
-	lengthBgExec = 1;
-
-	bgPidExec = (pid_t*) malloc(lengthBgExec * sizeof(int));
-	bgCommandExec = (char**) malloc(lengthBgExec * sizeof(char*));
-	for(i=0;i<lengthBgExec;i++){
+	bgPidExec = (pid_t*) calloc(50, sizeof(int));
+	bgCommandExec = (char**) malloc(50 * sizeof(char*));
+	for(i=0;i<50;i++){
 		bgCommandExec[i] = (char*) malloc(BUFFER_SIZE * sizeof(char));
 	}
 
@@ -333,7 +330,7 @@ int main(int argc){
 
 				exit(0);
 			} else if(strcmp(line->commands[0].argv[0], "jobs") == 0){
-				jobs();
+				jobs(1);
 			} else if(strcmp(line->commands[0].argv[0], "fg") == 0){
 				foreground();
 			} else {
