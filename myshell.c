@@ -18,23 +18,26 @@
 #define BUFFER_SIZE 1024
 
 char buf[BUFFER_SIZE];
-tline * line;
+tline * line; //Stores the information required of the user instruction
 int rIn, rOut, rErr;
-pid_t * bgPidExec;
-char ** bgCommandExec;
+pid_t * bgPidExec; //Dynamically stores the PIDs executing in background
+char ** bgCommandExec; //Dynamically stores the user instructions
 int lengthBgExec;
 //int redirection;
 
+//Creation custom behavior for ignoring choosen signals
 void SIG_IGN_custom(int signum){
 	printf("\nmsh> ");
 	fflush(stdout);
 }
 
+//Changes the signals behavior to default one
 void signalDefault(){
 	signal(SIGINT, SIG_DFL);
 	signal(SIGQUIT, SIG_DFL);
 }
 
+//Changes the signals behavior to custom
 void signalIgnore(){
 	signal(SIGINT, SIG_IGN_custom);
 	signal(SIGQUIT, SIG_IGN_custom);
@@ -43,6 +46,7 @@ void signalIgnore(){
 	signal(SIGQUIT, SIG_IGN);*/
 }
 
+//Self-programed CD function, changes current working directory depending on the input
 int changeDirectory(){
 	if(line->commands[0].argc > 2){
 		return 1;
@@ -64,6 +68,7 @@ int changeDirectory(){
 	printf("El nuevo directorio es: %s\n", getcwd(cwd,sizeof(cwd)));
 }
 
+//Increase or decrase the length of bgPidExec and bgCommandExec when you introduce new processes or some of then finish
 void increaseJobsExecArrays(int increment){
 	int i;
 
@@ -76,6 +81,7 @@ void increaseJobsExecArrays(int increment){
 	}
 }
 
+//Self-programed JOBS function, shows the processes executing in background
 int jobs(){
 	int i,j;
 	int arrayDecrement;
@@ -107,6 +113,7 @@ int jobs(){
 	}
 }
 
+//Adds new process to the jobs array when it/s executing in background
 void fillJobsExecArray(pid_t pid){
 	bgPidExec[lengthBgExec - 1] = pid;
 	strcpy(bgCommandExec[lengthBgExec - 1], buf);
@@ -116,6 +123,8 @@ void fillJobsExecArray(pid_t pid){
 	increaseJobsExecArrays(1);	
 }
 
+
+//Self-programed JOBS function, bring a process executing in background to foreground, so the minishell must wait until it ends
 int foreground(){
 	int i,j;
 	int status;
@@ -141,6 +150,7 @@ int foreground(){
 	increaseJobsExecArrays(-1);
 }
 
+//Changes where stdin, stdout or stderr points depending on the instruction introduced
 int redirections(){
 	int redirection;
 
@@ -188,6 +198,7 @@ int redirections(){
 	}
 }
 
+//Re-establish where stdin, stdout or stderr points by default
 int endRedirections(){
 	if(line->redirect_input != NULL ){
 			dup2(rIn , fileno(stdin));
@@ -209,6 +220,8 @@ int endRedirections(){
 		}
 }
 
+
+//Executes a 1 command instruction
 int simpleInstruction(){
 	pid_t pid;
 	pid = fork();
@@ -231,6 +244,7 @@ int simpleInstruction(){
 	}
 }
 
+//Executes 2 or more command instructions when they are separated by pipes, changing de input and output to link all of them
 int pipedInstruction(){
 	int i;
 	int ** pipes;
