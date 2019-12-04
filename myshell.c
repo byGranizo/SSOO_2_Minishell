@@ -1,7 +1,3 @@
-//Cuando se activan o deactivan las señales
-//const del nº de mandatos maximos en bg o realloc
-//dar formato a la salida de jobs
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -109,7 +105,7 @@ int jobs(){
 			i--;
 
 		} else if(bgPidExec[i] != 0) { //If not, prints it
-			printf("[%d] %d - %s", i+1, bgPidExec[i], bgCommandExec[i]);	
+			printf("[%6d] %12d - %s", i+1, bgPidExec[i], bgCommandExec[i]);	
 		}
 	}
 
