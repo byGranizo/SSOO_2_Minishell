@@ -105,7 +105,7 @@ int jobs(){
 			i--;
 
 		} else if(bgPidExec[i] != 0) { //If not, prints it
-			printf("[%6d] %12d - %s", i+1, bgPidExec[i], bgCommandExec[i]);	
+			printf("[%6d] %7d %18s %s", i+1, bgPidExec[i], "Running", bgCommandExec[i]);	
 		}
 	}
 
