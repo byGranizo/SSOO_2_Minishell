@@ -248,7 +248,7 @@ int simpleInstruction(){
 			fillJobsExecArray(pid);
 		} else {
 			waitpid(pid, &status, 0);
-			if(WIFEXITED(status) != 0){
+			if(WIFEXITED(status) != 0 && line->commands[0].filename != NULL){
 				if(WEXITSTATUS(status) != 0){
 					fprintf(stderr, "El mandato no se ha ejecutado correctamente: %s\n", strerror(errno));
 				}
@@ -318,7 +318,7 @@ int pipedInstruction(){
 	} else {
 		for(i=0;i<line->ncommands;i++){
 			waitpid(pids[i], &status, 0);
-			if(WIFEXITED(status) != 0){
+			if(WIFEXITED(status) != 0 && line->commands[i].filename != NULL){
 				if(WEXITSTATUS(status) != 0){
 					fprintf(stderr, "El mandato no se ha ejecutado correctamente: %s\n", strerror(errno));
 				}
