@@ -1,0 +1,8 @@
+libparser.a
+ls.txt
+myshell
+myshell.c
+myshell_static.c
+parser.h
+test
+test.c
