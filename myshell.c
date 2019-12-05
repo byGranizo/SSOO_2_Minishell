@@ -20,6 +20,7 @@ pid_t * bgPidExec; //Dynamically stores the PIDs executing in background
 char ** bgCommandExec; //Dynamically stores the user instructions
 int lengthBgExec;
 int redirection;
+int status;
 
 //Creation custom behavior for ignoring choosen signals
 void SIG_IGN_custom(int signum){
@@ -44,6 +45,7 @@ void signalIgnore(){
 
 //Self-programed CD function, changes current working directory depending on the input
 int changeDirectory(){
+	char *aux;
 	if(line->commands[0].argc > 2){
 		return 1;
 	}
@@ -56,9 +58,13 @@ int changeDirectory(){
 			getcwd(cwd,sizeof(cwd));
 			strcat(cwd,"/");
 			strcat(cwd, line->commands[0].argv[1]);
-			chdir(cwd);
+			if(chdir(cwd) != 0){
+				fprintf(stderr, "Error al cambiar de directorio\n");
+			}
 		} else {
-			chdir(line->commands[0].argv[1]);
+			if(chdir(line->commands[0].argv[1]) != 0){
+				fprintf(stderr, "Error al cambiar de directorio\n");
+			}
 		}
 	} else {
 		chdir(getenv("HOME"));
@@ -144,6 +150,11 @@ int foreground(){
 	//Wait until process finish, and deletes it from arrays
 	if(i < lengthBgExec){
 		currentPid = waitpid(bgPidExec[i], &status, 0);
+		if(WIFEXITED(status) != 0){
+			if(WEXITSTATUS(status) != 0){
+				fprintf(stderr, "El mandato no se ha ejecutado correctamente: %s\n", strerror(errno));
+			}
+		}
 		if(currentPid != 0){
 			for(j=i;j<lengthBgExec-1;j++){
 				bgPidExec[j] = bgPidExec[j+1];
@@ -165,6 +176,7 @@ int redirections(){
 		redirection = open(line->redirect_input, O_CREAT | O_RDONLY);
 
 		if(redirection < 0){
+			fprintf( stderr , "%s : Error. %s\n", line->redirect_input, strerror(errno));
 			return 1;
 		}
 
@@ -177,6 +189,7 @@ int redirections(){
 		redirection = creat (line->redirect_output ,  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH );
 
 		if(redirection < 0){
+			fprintf( stderr , "%s : Error. %s\n", line->redirect_output, strerror(errno));
 			return 1;
 		}
 
@@ -189,6 +202,7 @@ int redirections(){
 		redirection = creat (line->redirect_error ,  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 
 		if(redirection < 0){
+			fprintf( stderr , "%s : Error. %s\n", line->redirect_error, strerror(errno));
 			return 1;
 		}
 
@@ -220,8 +234,12 @@ int simpleInstruction(){
 		//Fork error
 	} else if(pid == 0) {
 		//Son
-		execvp(line->commands[0].argv[0], line->commands[0].argv);
-
+		if(line->commands[0].filename != NULL){
+			execvp(line->commands[0].argv[0], line->commands[0].argv);
+			fprintf(stderr, "El mandato no se ha ejecutado correctament: %s\n", strerror(errno));
+		} else {
+			fprintf(stderr, "%s: No se encuentra el mandato\n" , line->commands[0].argv[0]);
+		}
 		exit(1);
 	} else {
 		//Parent
@@ -229,7 +247,12 @@ int simpleInstruction(){
 		if(line->background){
 			fillJobsExecArray(pid);
 		} else {
-			waitpid(pid, NULL, 0);
+			waitpid(pid, &status, 0);
+			if(WIFEXITED(status) != 0){
+				if(WEXITSTATUS(status) != 0){
+					fprintf(stderr, "El mandato no se ha ejecutado correctamente: %s\n", strerror(errno));
+				}
+			}
 		}
 		
 	}
@@ -273,11 +296,13 @@ int pipedInstruction(){
 				dup2(pipes[i][1], fileno(stdout));
 			}
 			
-			execvp(line->commands[i].argv[0], line->commands[i].argv);
-			fprintf(stderr, "Error al ejecutar el comando: %s\n", strerror(errno));
-
+			if(line->commands[i].filename != NULL){
+				execvp(line->commands[i].argv[0], line->commands[i].argv);
+				fprintf(stderr, "El mandato no se ha ejecutado correctamente: %s\n", strerror(errno));
+			} else {
+				fprintf(stderr, "%s: No se encuentra el mandato\n", line->commands[i].argv[0]);
+			}
 			exit(1);
-			
 		} else {
 			//Parent
 			//Closes all parent output pipes
@@ -292,7 +317,12 @@ int pipedInstruction(){
 		fillJobsExecArray(pids[0]);
 	} else {
 		for(i=0;i<line->ncommands;i++){
-			waitpid(pids[i], NULL, 0);
+			waitpid(pids[i], &status, 0);
+			if(WIFEXITED(status) != 0){
+				if(WEXITSTATUS(status) != 0){
+					fprintf(stderr, "El mandato no se ha ejecutado correctamente: %s\n", strerror(errno));
+				}
+			}
 		}
 	}
 
