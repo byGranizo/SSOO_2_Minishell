@@ -356,7 +356,7 @@ int main(int argc){
 		bgCommandExec[i] = (char*) malloc(BUFFER_SIZE * sizeof(char));
 	}
 
-	//Avoid quit with CTRL+C and CTRL+\
+	/*	Avoid quit with CTRL+C and CTRL+\	*/
 	signalIgnore();
 
     printf("msh> ");
